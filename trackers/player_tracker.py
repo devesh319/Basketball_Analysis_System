@@ -1,6 +1,8 @@
 from ultralytics import YOLO
 import supervision as sv
 
+from utils.stub_utils import read_stub, save_stub
+
 
 class PlayerTracker:
     def __init__(self, model_path):
@@ -14,16 +16,21 @@ class PlayerTracker:
         for i in range(0, len(frames), batch_size):
             batch_frames = frames[i : i + batch_size]
             batch_detection = self.model.predict(batch_frames, conf=0.5)
-            detections.append(batch_detection)
+            detections.extend(batch_detection)
 
         return detections
 
-    def get_object_tracks(self, frames):
+    def get_object_tracks(self, frames, read_from_stub=False, stub_path=None):
+
+        tracks = read_stub(read_from_stub, stub_path)
+        if tracks is not None and len(tracks) == len(frames):
+            return tracks
+
         detections = self.detect_frames(frames)
         tracks = []
 
         for frame_num, detection in enumerate(detections):
-            class_names = detections.name
+            class_names = detection.names
             class_names_inv = {v: k for k, v in class_names.items()}
 
             detection_supervision = sv.Detections.from_ultralytics(detection)
@@ -40,6 +47,8 @@ class PlayerTracker:
                 track_id = frame_detection[4]
 
                 if class_id == class_names_inv["Player"]:
-                    tracks["frame_number"]["track_id"] = {"box": bbox}
+                    tracks[frame_num][track_id] = {"box": bbox}
+
+        save_stub(stub_path, tracks)
 
         return tracks

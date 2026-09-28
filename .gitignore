@@ -20,6 +20,9 @@ __pycache__/
 models/*.pt
 models/*.pth
 
+# Checkpoint files
+checkpoints/*.pkl
+
 # Input / output data
 input/*.mp4
 input/*.avi
