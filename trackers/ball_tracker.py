@@ -1,13 +1,11 @@
 from ultralytics import YOLO
+from utils.stub_utils import read_stub, save_stub
 import supervision as sv
 
-from utils.stub_utils import read_stub, save_stub
 
-
-class PlayerTracker:
+class BallTracker:
     def __init__(self, model_path):
         self.model = YOLO(model_path)
-        self.tracker = sv.ByteTrack()
 
     def detect_frames(self, frames):
         batch_size = 20
@@ -30,24 +28,26 @@ class PlayerTracker:
         tracks = []
 
         for frame_num, detection in enumerate(detections):
-            class_names = detection.names
-            class_names_inv = {v: k for k, v in class_names.items()}
+            cls_names = detection.names
+            cls_names_inv = {v: k for k, v in cls_names.items()}
 
             detection_supervision = sv.Detections.from_ultralytics(detection)
-
-            detection_with_tracks = self.tracker.update_with_detections(
-                detection_supervision
-            )
-
             tracks.append({})
 
-            for frame_detection in detection_with_tracks:
-                bbox = frame_detection[0].tolist()
-                class_id = frame_detection[3]
-                track_id = frame_detection[4]
+            chosen_bbox = None
+            max_confidence = 0
 
-                if class_id == class_names_inv["Player"]:
-                    tracks[frame_num][track_id] = {"bbox": bbox}
+            for frame_detection in detection_supervision:
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
+                confidence = frame_detection[2]
+
+                if cls_id == cls_names_inv["Ball"] and confidence > max_confidence:
+                    chosen_bbox = bbox
+                    max_confidence = confidence
+
+            if chosen_bbox is not None:
+                tracks[frame_num][1] = {"bbox": chosen_bbox}
 
         save_stub(stub_path, tracks)
 
