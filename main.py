@@ -12,7 +12,7 @@ def main():
     video_frames = read_video("./input/video_1.mp4")
 
     # Intialize Trackers
-    player_tracker = PlayerTracker("./models/player_detector.pt")
+    player_tracker = PlayerTracker("./models/player_detector_v2.pt")
     ball_tracker = BallTracker("./models/ball_detector.pt")
 
     # Track Players

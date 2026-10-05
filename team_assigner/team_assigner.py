@@ -8,7 +8,7 @@ from utils.stub_utils import read_stub, save_stub
 class TeamAssigner:
 
     def __init__(
-        self, team1_class_name="Dark Blue Tshirt", team2_class_name="White Tshirt"
+        self, team1_class_name="White Tshirt", team2_class_name="Dark Blue Tshirt"
     ):
         self.team1_class_name = team1_class_name
         self.team2_class_name = team2_class_name
@@ -53,7 +53,7 @@ class TeamAssigner:
 
         player_color = self.get_player_color(frame, bbox)
 
-        team_id = 1 if player_color == "Dark Blue Tshirt" else 2
+        team_id = 1 if player_color == self.team1_class_name else 2
 
         self.player_dict[player_id] = team_id
 

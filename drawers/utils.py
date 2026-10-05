@@ -34,13 +34,15 @@ def draw_ellipse(frame, bbox, color, track_id=None):
 
         x1_text = x1_rect + 10 if track_id < 100 else x1_rect
 
+        text_color = [0, 0, 0] if color == [255, 245, 238] else [255, 255, 255]
+
         cv2.putText(
             frame,
             str(track_id),
             (x1_text, y1_rect + 15),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
-            (0, 0, 0),
+            text_color,
             2,
         )
 
