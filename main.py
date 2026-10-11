@@ -3,12 +3,16 @@ from trackers.player_tracker import PlayerTracker
 from trackers.ball_tracker import BallTracker
 from court_keypoint_detector.court_keypoint_detector import CourtKeypointDetector
 from tactical_view_converter.tactical_view_converter import TacticalViewConverter
+from speed_distance_calculator.speed_distance_calculator import (
+    SpeedAndDistanceCalculator,
+)
 from drawers.player_tracks_drawer import PlayerTracksDrawer
 from drawers.ball_tracks_drawer import BallTracksDrawer
 from drawers.team_ball_control_drawer import TeamBallControlDrawer
 from drawers.pass_interception_drawer import PassInterceptionDrawer
 from drawers.court_keypoints_drawer import CourtKeypointDrawer
 from drawers.tactical_view_drawer import TacticalViewDrawer
+from drawers.speed_distance_drawer import SpeedAndDistanceDrawer
 from team_assigner.team_assigner import TeamAssigner
 from ball_acquisition.ball_acquisition import BallAquisitionDetector
 from pass_interception_detector.pass_interception_detector import (
@@ -92,6 +96,20 @@ def main():
         )
     )
 
+    # Speed and Distance Calculator
+    speed_and_distance_calculator = SpeedAndDistanceCalculator(
+        tactical_view_converter.width,
+        tactical_view_converter.height,
+        tactical_view_converter.actual_width_in_meters,
+        tactical_view_converter.actual_height_in_meters,
+    )
+    player_distances_per_frame = speed_and_distance_calculator.calculate_distance(
+        tactical_player_positions
+    )
+    player_speed_per_frame = speed_and_distance_calculator.calculate_speed(
+        player_distances_per_frame
+    )
+
     # Initialize Drawers
     player_drawer = PlayerTracksDrawer()
     ball_drawer = BallTracksDrawer()
@@ -99,6 +117,7 @@ def main():
     pass_and_interceptions_drawer = PassInterceptionDrawer()
     court_keypoint_drawer = CourtKeypointDrawer()
     tactical_view_drawer = TacticalViewDrawer()
+    speed_distance_drawer = SpeedAndDistanceDrawer()
 
     # Draw Tracks
     output_video_frames = player_drawer.draw(
@@ -121,7 +140,15 @@ def main():
         output_video_frames, passes, interceptions
     )
 
-    ## Draw Tactical View
+    # Draw Speed and Distance
+    output_video_frames = speed_distance_drawer.draw(
+        output_video_frames,
+        player_tracks,
+        player_distances_per_frame,
+        player_speed_per_frame,
+    )
+
+    # Draw Tactical View
     output_video_frames = tactical_view_drawer.draw(
         output_video_frames,
         tactical_view_converter.court_image_path,
