@@ -2,11 +2,13 @@ from utils.video_utils import read_video, save_video
 from trackers.player_tracker import PlayerTracker
 from trackers.ball_tracker import BallTracker
 from court_keypoint_detector.court_keypoint_detector import CourtKeypointDetector
+from tactical_view_converter.tactical_view_converter import TacticalViewConverter
 from drawers.player_tracks_drawer import PlayerTracksDrawer
 from drawers.ball_tracks_drawer import BallTracksDrawer
 from drawers.team_ball_control_drawer import TeamBallControlDrawer
 from drawers.pass_interception_drawer import PassInterceptionDrawer
 from drawers.court_keypoints_drawer import CourtKeypointDrawer
+from drawers.tactical_view_drawer import TacticalViewDrawer
 from team_assigner.team_assigner import TeamAssigner
 from ball_acquisition.ball_acquisition import BallAquisitionDetector
 from pass_interception_detector.pass_interception_detector import (
@@ -77,12 +79,26 @@ def main():
         ball_acquisition, players_assignment
     )
 
+    # Get Tactical View
+    tactical_view_converter = TacticalViewConverter(
+        court_image_path="./images/basketball_court.png"
+    )
+    court_keypoints_per_frame = tactical_view_converter.validate_keypoints(
+        court_keypoints
+    )
+    tactical_player_positions = (
+        tactical_view_converter.transform_players_to_tactical_view(
+            court_keypoints_per_frame, player_tracks
+        )
+    )
+
     # Initialize Drawers
     player_drawer = PlayerTracksDrawer()
     ball_drawer = BallTracksDrawer()
     ball_acqusition_drawer = TeamBallControlDrawer()
     pass_and_interceptions_drawer = PassInterceptionDrawer()
     court_keypoint_drawer = CourtKeypointDrawer()
+    tactical_view_drawer = TacticalViewDrawer()
 
     # Draw Tracks
     output_video_frames = player_drawer.draw(
@@ -103,6 +119,18 @@ def main():
     # Write Passes & Interceptions
     output_video_frames = pass_and_interceptions_drawer.draw(
         output_video_frames, passes, interceptions
+    )
+
+    ## Draw Tactical View
+    output_video_frames = tactical_view_drawer.draw(
+        output_video_frames,
+        tactical_view_converter.court_image_path,
+        tactical_view_converter.width,
+        tactical_view_converter.height,
+        tactical_view_converter.key_points,
+        tactical_player_positions,
+        players_assignment,
+        ball_acquisition,
     )
 
     # Write Video
