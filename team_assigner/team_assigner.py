@@ -6,16 +6,41 @@ from utils.stub_utils import read_stub, save_stub
 
 
 class TeamAssigner:
+    """
+    A class that assigns players to teams based on their jersey colors using visual analysis.
+
+    The class uses a pre-trained vision model to classify players into teams based on their
+    appearance. It maintains a consistent team assignment for each player across frames.
+
+    Attributes:
+        team_colors (dict): Dictionary storing team color information.
+        player_team_dict (dict): Dictionary mapping player IDs to their team assignments.
+        team_1_class_name (str): Description of Team 1's jersey appearance.
+        team_2_class_name (str): Description of Team 2's jersey appearance.
+    """
 
     def __init__(
-        self, team1_class_name="White Tshirt", team2_class_name="Dark Blue Tshirt"
+        self,
+        team_1_class_name="white shirt",
+        team_2_class_name="dark blue shirt",
     ):
-        self.team1_class_name = team1_class_name
-        self.team2_class_name = team2_class_name
+        """
+        Initialize the TeamAssigner with specified team jersey descriptions.
 
-        self.player_dict = {}
+        Args:
+            team_1_class_name (str): Description of Team 1's jersey appearance.
+            team_2_class_name (str): Description of Team 2's jersey appearance.
+        """
+        self.team_colors = {}
+        self.player_team_dict = {}
+
+        self.team_1_class_name = team_1_class_name
+        self.team_2_class_name = team_2_class_name
 
     def load_model(self):
+        """
+        Loads the pre-trained vision model for jersey color classification.
+        """
         self.model = AutoModel.from_pretrained(
             "patrickjohncyh/fashion-clip",
             attn_implementation="sdpa",
@@ -24,18 +49,27 @@ class TeamAssigner:
         self.processor = AutoProcessor.from_pretrained("patrickjohncyh/fashion-clip")
 
     def get_player_color(self, frame, bbox):
+        """
+        Analyzes the jersey color of a player within the given bounding box.
+
+        Args:
+            frame (numpy.ndarray): The video frame containing the player.
+            bbox (tuple): Bounding box coordinates of the player.
+
+        Returns:
+            str: The classified jersey color/description.
+        """
         image = frame[int(bbox[1]) : int(bbox[3]), int(bbox[0]) : int(bbox[2])]
 
-        rgb_img = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        pil_img = Image.fromarray(rgb_img)
+        # Convert to PIL Image
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(rgb_image)
+        image = pil_image
 
-        classes = [self.team1_class_name, self.team2_class_name]
+        classes = [self.team_1_class_name, self.team_2_class_name]
 
         inputs = self.processor(
-            text=classes,
-            images=pil_img,
-            return_tensors="pt",
-            padding=True,
+            text=classes, images=image, return_tensors="pt", padding=True
         )
 
         outputs = self.model(**inputs)
@@ -46,49 +80,66 @@ class TeamAssigner:
 
         return class_name
 
-    def get_player_team(self, frame, bbox, player_id):
+    def get_player_team(self, frame, player_bbox, player_id):
+        """
+        Gets the team assignment for a player, using cached results if available.
 
-        if player_id in self.player_dict.keys():
-            return self.player_dict.get(player_id, "")
+        Args:
+            frame (numpy.ndarray): The video frame containing the player.
+            player_bbox (tuple): Bounding box coordinates of the player.
+            player_id (int): Unique identifier for the player.
 
-        player_color = self.get_player_color(frame, bbox)
+        Returns:
+            int: Team ID (1 or 2) assigned to the player.
+        """
+        if player_id in self.player_team_dict:
+            return self.player_team_dict[player_id]
 
-        team_id = 1 if player_color == self.team1_class_name else 2
+        player_color = self.get_player_color(frame, player_bbox)
 
-        self.player_dict[player_id] = team_id
+        team_id = 2
+        if player_color == self.team_1_class_name:
+            team_id = 1
 
+        self.player_team_dict[player_id] = team_id
         return team_id
 
     def get_player_teams_across_frames(
-        self, video_frames, player_tracks, read_from_stubs=False, stub_path=None
+        self, video_frames, player_tracks, read_from_stub=False, stub_path=None
     ):
+        """
+        Processes all video frames to assign teams to players, with optional caching.
 
-        player_assignments = read_stub(read_from_stubs, stub_path)
+        Args:
+            video_frames (list): List of video frames to process.
+            player_tracks (list): List of player tracking information for each frame.
+            read_from_stub (bool): Whether to attempt reading cached results.
+            stub_path (str): Path to the cache file.
 
-        if player_assignments is not None and len(player_assignments) == len(
-            video_frames
-        ):
-            return player_assignments
+        Returns:
+            list: List of dictionaries mapping player IDs to team assignments for each frame.
+        """
+
+        player_assignment = read_stub(read_from_stub, stub_path)
+        if player_assignment is not None:
+            if len(player_assignment) == len(video_frames):
+                return player_assignment
 
         self.load_model()
 
-        player_assignments = []
-
+        player_assignment = []
         for frame_num, player_track in enumerate(player_tracks):
-
-            player_assignments.append({})
+            player_assignment.append({})
 
             if frame_num % 50 == 0:
-                self.player_dict = {}
+                self.player_team_dict = {}
 
             for player_id, track in player_track.items():
-
                 team = self.get_player_team(
                     video_frames[frame_num], track["bbox"], player_id
                 )
+                player_assignment[frame_num][player_id] = team
 
-                player_assignments[frame_num][player_id] = team
+        save_stub(stub_path, player_assignment)
 
-        save_stub(stub_path, player_assignments)
-
-        return player_assignments
+        return player_assignment
