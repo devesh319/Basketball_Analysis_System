@@ -1,3 +1,6 @@
+import argparse
+import os
+
 from utils.video_utils import read_video, save_video
 from trackers.player_tracker import PlayerTracker
 from trackers.ball_tracker import BallTracker
@@ -19,38 +22,64 @@ from pass_interception_detector.pass_interception_detector import (
     PassInterceptionDetector,
 )
 
+from config.config import (
+    STUBS_DEFAULT_PATH,
+    PLAYER_DETECTOR_PATH,
+    BALL_DETECTOR_PATH,
+    COURT_KEYPOINT_DETECTOR_PATH,
+    OUTPUT_VIDEO_PATH,
+)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Basketball Video Analysis")
+    parser.add_argument("input_video", type=str, help="Path to input video file")
+    parser.add_argument(
+        "--output_video",
+        type=str,
+        default=OUTPUT_VIDEO_PATH,
+        help="Path to output video file",
+    )
+    parser.add_argument(
+        "--stub_path",
+        type=str,
+        default=STUBS_DEFAULT_PATH,
+        help="Path to stub directory",
+    )
+    return parser.parse_args()
+
 
 def main():
 
+    args = parse_args()
+
     # Read Video
-    video_frames = read_video("./input/video_1.mp4")
+    video_frames = read_video(args.input_video)
 
     # Intialize Trackers
-    player_tracker = PlayerTracker("./models/player_detector_v2.pt")
-    ball_tracker = BallTracker("./models/ball_detector.pt")
+    player_tracker = PlayerTracker(PLAYER_DETECTOR_PATH)
+    ball_tracker = BallTracker(BALL_DETECTOR_PATH)
 
     # Initialize Court Keypoints Detector
-    court_keypoint_detector = CourtKeypointDetector(
-        "./models/court_keypoint_detector.pt"
-    )
+    court_keypoint_detector = CourtKeypointDetector(COURT_KEYPOINT_DETECTOR_PATH)
 
     # Track Players
     player_tracks = player_tracker.get_object_tracks(
         video_frames,
         read_from_stub=True,
-        stub_path="checkpoints/player_tracker_stub.pkl",
+        stub_path=os.path.join(args.stub_path, "player_track_stubs.pkl"),
     )
     ball_tracks = ball_tracker.get_object_tracks(
         video_frames,
         read_from_stub=True,
-        stub_path="checkpoints/ball_tracker_stub.pkl",
+        stub_path=os.path.join(args.stub_path, "ball_tracker_stub.pkl"),
     )
 
     # Get Court Keypoints
     court_keypoints = court_keypoint_detector.get_court_keypoints(
         video_frames,
         read_from_stub=True,
-        stub_path="checkpoints/court_keypoints_stub.pkl",
+        stub_path=os.path.join(args.stub_path, "court_keypoints_stub.pkl"),
     )
 
     # Remove Wrong Detections
@@ -65,7 +94,7 @@ def main():
         video_frames,
         player_tracks,
         read_from_stub=True,
-        stub_path="checkpoints/team_assigner_stub.pkl",
+        stub_path=os.path.join(args.stub_path, "team_assigner_stub.pkl"),
     )
 
     # Find Ball Acquisition
@@ -161,7 +190,7 @@ def main():
     )
 
     # Write Video
-    save_video(output_video_frames, "./output/video_1.avi")
+    save_video(output_video_frames, args.output_video)
     print("Run Successful!")
 
 

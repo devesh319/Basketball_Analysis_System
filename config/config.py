@@ -1,0 +1,5 @@
+STUBS_DEFAULT_PATH = "checkpoints"
+PLAYER_DETECTOR_PATH = "models/player_detector_v2.pt"
+BALL_DETECTOR_PATH = "models/ball_detector.pt"
+COURT_KEYPOINT_DETECTOR_PATH = "models/court_keypoint_detector.pt"
+OUTPUT_VIDEO_PATH = "output/output_video.avi"
